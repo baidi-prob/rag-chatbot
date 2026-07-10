@@ -1,0 +1,29 @@
+Weather Data Interpolation Techniques
+
+Inverse Distance Weighting (IDW) is a spatial interpolation method that estimates
+values at unmeasured locations using a weighted average of nearby known points.
+Points closer to the target location are given more weight than points farther
+away, based on the assumption that closer things are more similar.
+
+Kriging is a more advanced geostatistical interpolation method that accounts for
+both the distance and the degree of spatial correlation between known data
+points. Unlike IDW, Kriging provides an estimate of prediction uncertainty at
+each interpolated point, making it useful when data confidence matters.
+
+Data Imputation Methods
+
+KNN (K-Nearest Neighbors) imputation fills in missing values by looking at the
+K most similar data points (neighbors) and using their average or most common
+value. It works well when data has clear local patterns.
+
+Iterative Imputation models each feature with missing values as a function of
+other features, repeatedly refining estimates until they converge. This tends
+to work better than simple mean imputation when features are correlated with
+each other.
+
+Transformer Fine-Tuning
+
+Fine-tuning takes a pre-trained transformer model and further trains it on a
+smaller, task-specific dataset. This adapts the model's general language
+understanding to a specific domain (like climate data) without training a
+model from scratch, which would require far more data and compute.
