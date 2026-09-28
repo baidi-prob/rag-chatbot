@@ -15,12 +15,42 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Sync to Hugging Face Space
-        uses: huggingface/hub-sync@v0.1.0
-        with:
-          github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: ${{ env.HF_REPO_ID }}
-          hf_token: ${{ secrets.HF_TOKEN }}
-          repo_type: space
-          space_sdk: streamlit
-          private: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Verify HF token is present
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.HF_TOKEN }}" ]; then
+            echo "::error::HF_TOKEN secret is missing. Add it in Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "HF_TOKEN is set (length ${#HF_TOKEN})."
+
+      - name: Create or update Hugging Face Space
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "=== Creating/updating Space: ${HF_REPO_ID} ==="
+          uvx hf repos create "${HF_REPO_ID}" --type space --exist-ok --space-sdk streamlit
+          echo "=== Space ready ==="
+
+      - name: Upload files to Hugging Face Space
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "=== Uploading repo files to ${HF_REPO_ID} ==="
+          uvx hf upload \
+            "${HF_REPO_ID}" \
+            . \
+            --type space \
+            --exclude=".git*" \
+            --exclude=".github*" \
+            --delete="*" \
+            --commit-message="Sync from ${{ github.repository }} via CI"
+          echo "=== Upload complete ==="
+          echo "View your Space at: https://huggingface.co/spaces/${HF_REPO_ID}"
