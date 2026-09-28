@@ -32,17 +32,28 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          set -euo pipefail
-          echo "=== Validating HF token ==="
-          # This prints the account the token belongs to, or fails if the
-          # token is invalid / lacks permission.
-          if ! WHOAMI="$(uvx hf whoami 2>&1)"; then
-            echo "::error::HF token validation failed. Output:"
-            echo "$WHOAMI"
-            echo "::error::Fix: generate a NEW token at huggingface.co/settings/tokens with 'write' scope."
+          set +e
+          echo "=== Validating HF token (hf whoami) ==="
+          WHOAMI_OUT="$(uvx hf whoami 2>&1)"
+          WHOAMI_CODE=$?
+          echo "$WHOAMI_OUT"
+          if [ $WHOAMI_CODE -ne 0 ]; then
+            echo ""
+            echo "=========================================================="
+            echo "TOKEN VALIDATION FAILED (exit code $WHOAMI_CODE)."
+            echo "The raw error from the hf CLI is shown above."
+            echo ""
+            echo "Most likely causes:"
+            echo "  1. The token is expired or was regenerated -> create a NEW one"
+            echo "  2. It lacks 'write' scope -> regenerate with write access"
+            echo "  3. It is a fine-grained token without repo access"
+            echo ""
+            echo "Fix: go to huggingface.co -> Settings -> Access tokens ->"
+            echo "New token, scope = 'write', then update the HF_TOKEN secret."
+            echo "=========================================================="
             exit 1
           fi
-          echo "Token is valid. Account info: $WHOAMI"
+          echo "Token is valid. Account info: $WHOAMI_OUT"
 
       - name: Create or update Hugging Face Space
         shell: bash
