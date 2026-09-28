@@ -35,8 +35,22 @@ streamlit run app.py
 
 Get a **free** Groq API key at [console.groq.com/keys](https://console.groq.com/keys)
 (no credit card required). Then open the local URL Streamlit prints, paste in
-your Groq API key in the sidebar, upload `sample_data/sample_notes.txt`
-(included) or your own PDF, and start asking questions.
+your Groq API key in the sidebar, upload `sample_notes.txt` (included) or your
+own PDF, and start asking questions.
+
+### Sidebar settings
+
+- **Retrieval** — tune chunk size, chunk overlap, and how many chunks (k) are
+  retrieved per question.
+- **Index** — reuse a previously built FAISS index instead of re-embedding on
+  every run. The index is saved to `faiss_index/` automatically.
+
+### Features
+
+- **Conversation memory** — follow-up questions work ("What about IDW?" refers
+  back to the previous answer). The chain rewrites follow-ups into standalone
+  questions before retrieval.
+- **Source citations** — every answer shows which chunks it came from.
 
 ## Example questions to try with the sample data
 

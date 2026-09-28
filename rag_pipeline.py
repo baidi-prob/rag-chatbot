@@ -1,6 +1,6 @@
 """
 rag_pipeline.py
-================
+===============
 This file contains the core RAG (Retrieval-Augmented Generation) logic.
 Read the comments carefully -- you should be able to explain every step
 of this file in an interview.
@@ -12,16 +12,20 @@ The 3 stages of RAG:
 """
 
 import os
+from typing import List
+
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
-from langchain_classic.chains import RetrievalQA
+from langchain_classic.chains import ConversationalRetrievalChain
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
+from langchain_core.documents import Document
 
 
-def load_documents(file_path: str):
+def load_documents(file_path: str) -> List[Document]:
     """
     STAGE 1a: Load a document from disk.
     - PDFs use PyPDFLoader, plain text files use TextLoader.
@@ -81,12 +85,12 @@ def build_vector_store(chunks, persist_path: str = "faiss_index"):
 
 
 def load_vector_store(persist_path: str = "faiss_index"):
-    """Load a previously built FAISS index back from disk."""
+    """Load a previously built FAISS index back from disk (skips re-embedding)."""
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     return FAISS.load_local(persist_path, embeddings, allow_dangerous_deserialization=True)
 
 
-def build_qa_chain(vector_store, groq_api_key: str, k: int = 3):
+def build_qa_chain(vector_store, groq_api_key: str, k: int = 3, use_memory: bool = True):
     """
     STAGE 2 + 3 combined: build the retrieval + generation chain.
 
@@ -103,11 +107,16 @@ def build_qa_chain(vector_store, groq_api_key: str, k: int = 3):
     - Groq offers a genuinely free API tier (no credit card needed) and is
       extremely fast, since it runs models on custom hardware built for
       inference speed rather than general-purpose GPUs.
+
+    CONVERSATION MEMORY:
+    - ConversationalRetrievalChain rewrites follow-up questions ("it" -> "IDW")
+      using the chat history, so retrieval stays accurate across turns.
     """
     llm = ChatGroq(
         model="llama-3.1-8b-instant",
         temperature=0,  # 0 = deterministic, factual answers (not creative)
-        api_key=groq_api_key
+        api_key=groq_api_key,
+        streaming=True,  # tokens stream to the UI as they're generated
     )
 
     # This prompt is the key to reducing hallucination: it explicitly tells
@@ -124,11 +133,18 @@ Answer:"""
 
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
 
-    qa_chain = RetrievalQA.from_chain_type(
+    memory = ConversationBufferMemory(
+        memory_key="chat_history",
+        return_messages=True,
+        output_key="answer",
+    ) if use_memory else None
+
+    qa_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
-        chain_type="stuff",  # "stuff" = simply stuff all retrieved chunks into one prompt
         retriever=vector_store.as_retriever(search_kwargs={"k": k}),
-        chain_type_kwargs={"prompt": prompt},
-        return_source_documents=True  # lets us show which chunks the answer came from
+        chain_type="stuff",  # "stuff" = simply stuff all retrieved chunks into one prompt
+        combine_docs_chain_kwargs={"prompt": prompt},
+        memory=memory,
+        return_source_documents=True,  # lets us show which chunks the answer came from
     )
     return qa_chain
