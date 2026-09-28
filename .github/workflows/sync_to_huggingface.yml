@@ -1,5 +1,9 @@
 name: Sync to Hugging Face Hub
 
+# Change this if you rename your Space (e.g. owner/your-space-name)
+env:
+  HF_REPO_ID: baidi-prob/rag-chatbot
+
 on:
   push:
     branches: [main]
@@ -15,7 +19,7 @@ jobs:
         uses: huggingface/hub-sync@v0.1.0
         with:
           github_repo_id: ${{ github.repository }}
-          huggingface_repo_id: baidi-prob/rag-chatbot
+          huggingface_repo_id: ${{ env.HF_REPO_ID }}
           hf_token: ${{ secrets.HF_TOKEN }}
           repo_type: space
           space_sdk: streamlit
