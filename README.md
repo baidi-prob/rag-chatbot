@@ -65,3 +65,4 @@ own PDF, and start asking questions.
 - How vector similarity search works differently from keyword search
 - Trade-offs between local embeddings (free, fast) vs. API-based embeddings
   (often more accurate, but cost money per call)
+
