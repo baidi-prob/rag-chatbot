@@ -27,6 +27,23 @@ jobs:
           fi
           echo "HF_TOKEN is set (length ${#HF_TOKEN})."
 
+      - name: Validate token and HF account
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "=== Validating HF token ==="
+          # This prints the account the token belongs to, or fails if the
+          # token is invalid / lacks permission.
+          if ! WHOAMI="$(uvx hf whoami 2>&1)"; then
+            echo "::error::HF token validation failed. Output:"
+            echo "$WHOAMI"
+            echo "::error::Fix: generate a NEW token at huggingface.co/settings/tokens with 'write' scope."
+            exit 1
+          fi
+          echo "Token is valid. Account info: $WHOAMI"
+
       - name: Create or update Hugging Face Space
         shell: bash
         env:
@@ -34,7 +51,10 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Creating/updating Space: ${HF_REPO_ID} ==="
-          uvx hf repos create "${HF_REPO_ID}" --type space --exist-ok --space-sdk streamlit
+          # Capture stderr so we can surface the real reason for failure.
+          CREATE_OUT="$(uvx hf repos create "${HF_REPO_ID}" --type space --exist-ok --space-sdk streamlit 2>&1)" \
+            || { echo "::error::Space creation failed. Output:"; echo "$CREATE_OUT"; exit 1; }
+          echo "$CREATE_OUT"
           echo "=== Space ready ==="
 
       - name: Upload files to Hugging Face Space
